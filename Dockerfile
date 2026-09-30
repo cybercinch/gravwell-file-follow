@@ -40,8 +40,11 @@ ARG TARGETARCH
 
 WORKDIR /build
 
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends git ca-certificates wget && \
+# -o Acquire::ForceIPv4=true: some build networks have a broken/high-latency
+# IPv6 path to deb.debian.org that truncates the InRelease file mid-download,
+# which apt reports as "invalid signature" rather than a network error.
+RUN apt-get -o Acquire::ForceIPv4=true update && \
+    apt-get -o Acquire::ForceIPv4=true install -y --no-install-recommends git ca-certificates wget && \
     rm -rf /var/lib/apt/lists/* && \
     git clone --depth 1 --branch ${GRAVWELL_VERSION} \
         https://github.com/gravwell/gravwell.git .
