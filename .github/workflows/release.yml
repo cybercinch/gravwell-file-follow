@@ -75,7 +75,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            GRAVWELL_VERSION=${{ vars.GRAVWELL_VERSION || 'v3.8.76' }}
+            GRAVWELL_VERSION=${{ vars.GRAVWELL_VERSION || 'v3.8.84' }}
           # Registry cache keeps layer reuse fast across runs and architectures.
           cache-from: type=registry,ref=cybercinch/gravwell-file-follow:buildcache
           cache-to: type=registry,ref=cybercinch/gravwell-file-follow:buildcache,mode=max

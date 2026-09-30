@@ -1,0 +1,47 @@
+name: Check Gravwell Upstream Version
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check latest gravwell/gravwell release
+        id: check
+        run: |
+          latest=$(curl -sf https://api.github.com/repos/gravwell/gravwell/releases/latest | jq -r '.tag_name // empty')
+          if [ -z "$latest" ]; then
+            echo "Failed to fetch latest gravwell release" >&2
+            exit 1
+          fi
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+
+      - name: Tag and release if new
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          latest="${{ steps.check.outputs.latest }}"
+
+          if git rev-parse "$latest" >/dev/null 2>&1; then
+            echo "Already have tag $latest — nothing to do."
+            exit 0
+          fi
+
+          echo "New gravwell release detected: $latest"
+          gh variable set GRAVWELL_VERSION --body "$latest"
+
+          git tag "$latest"
+          git push origin "$latest"
+
+          gh release create "$latest" \
+            --title "$latest" \
+            --notes "Tracks gravwell/gravwell release ${latest} (fileFollow ingester). Auto-created by check-gravwell-version.yml."
