@@ -1,0 +1,81 @@
+name: Build and Push
+
+on:
+  push:
+    tags:
+      - 'v*'
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    name: Go unit tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: watcher
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: watcher/go.mod
+          cache-dependency-path: watcher/go.sum
+
+      - name: Run tests
+        run: go test ./... -v -race -count=1
+
+  build:
+    name: Build and push image
+    runs-on: ubuntu-latest
+    needs: test
+    # Only push on version tags; PRs and main-branch pushes build only.
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        # Skip login on pull requests.
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: cybercinch/gravwell-file-follow
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/') }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          # Only push on tag events; PRs and main get build-only.
+          push: ${{ startsWith(github.ref, 'refs/tags/') }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            GRAVWELL_VERSION=${{ vars.GRAVWELL_VERSION || 'v3.8.76' }}
+          # Registry cache keeps layer reuse fast across runs and architectures.
+          cache-from: type=registry,ref=cybercinch/gravwell-file-follow:buildcache
+          cache-to: type=registry,ref=cybercinch/gravwell-file-follow:buildcache,mode=max

@@ -1,0 +1,23 @@
+# Environment configuration
+.env
+
+# Rendered runtime config (contains secrets — generated from template at startup)
+file_follow.conf
+
+# Custom CA cert (may contain internal PKI details — bring your own at build time)
+# Use --build-arg CUSTOM_CA=your-ca.crt when building
+*.crt
+!docker/empty.crt
+
+# Downloaded Gravwell binaries
+gravwell_file_follow
+gravwell_crash_reporter
+
+# Downloaded Gravwell installers (not the entrypoint.sh we wrote)
+gravwell_*_installer_*.sh
+
+# Gravwell tarballs
+*.tar.gz
+
+# Docker volumes
+volumes/

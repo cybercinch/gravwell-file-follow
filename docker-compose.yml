@@ -1,0 +1,86 @@
+services:
+  gravwell-file-follow:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        GRAVWELL_VERSION: "${GRAVWELL_VERSION:-v3.8.76}"
+    image: cybercinch/gravwell-file-follow:latest
+    container_name: gravwell-file-follow
+    restart: unless-stopped
+
+    # docker-log-watcher reads the Docker socket and container log dirs as root.
+    # The watcher itself enforces the skip/tag label rules so no container can
+    # accidentally gain elevated access to Gravwell.
+    privileged: true
+    user: "0:0"
+
+    volumes:
+      # Docker API — read-only; we only need to list/inspect containers.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+      # Host root filesystem — read-only.  The watcher queries the Docker socket
+      # for DockerRootDir at startup and reads container logs from /host<root>/containers.
+      # rslave propagation ensures sub-mounts (e.g. a separate partition at
+      # /home/docker_home) are visible inside the container.
+      - type: bind
+        source: /
+        target: /host
+        read_only: true
+        bind:
+          propagation: rslave
+
+      # Persist state file across restarts (offsets, UUID, …).
+      - file_follow_state:/opt/gravwell/etc
+
+      # Optional: static overlay configs for non-container log sources
+      # (host syslog, app logs, etc.).  The watcher never touches this directory.
+      # Paths inside configs should use /host/... since the host root is at /host.
+      # Uncomment and point at a directory containing your hand-crafted .conf files.
+      # - /path/to/your/static-configs:/opt/gravwell/etc/static.conf.d:ro
+
+    environment:
+      # ── Gravwell ingester ──────────────────────────────────────────────────
+      GRAVWELL_INGEST_SECRET: "${GRAVWELL_INGEST_SECRET}"
+      GRAVWELL_CLEARTEXT_TARGETS: "${GRAVWELL_CLEARTEXT_TARGETS:-}"
+      GRAVWELL_ENCRYPTED_TARGETS: "${GRAVWELL_ENCRYPTED_TARGETS:-}"
+      INSECURE_SKIP_TLS_VERIFY: "${INSECURE_SKIP_TLS_VERIFY:-true}"
+      GRAVWELL_LOG_LEVEL: "${GRAVWELL_LOG_LEVEL:-INFO}"
+
+      # Stable ingester identity — survives redeploys.
+      # Leave blank to auto-generate and persist on the state volume.
+      GRAVWELL_INGESTER_UUID: "${GRAVWELL_INGESTER_UUID:-}"
+      # Human label shown in Gravwell's Systems & Health page.
+      GRAVWELL_INGESTER_LABEL: "${GRAVWELL_INGESTER_LABEL:-docker-file-follow}"
+
+      # ── docker-log-watcher ─────────────────────────────────────────────────
+      WATCHER_CONF_DIR: "/opt/gravwell/etc/file_follow.conf.d"
+      # WATCHER_CONTAINER_DIR: "/host/custom/path/containers"  # override auto-detection if needed
+      WATCHER_DEFAULT_TAG: "${WATCHER_DEFAULT_TAG:-docker}"
+      WATCHER_SELF_CONTAINER: "gravwell-file-follow"
+      WATCHER_DEBOUNCE_SECS: "${WATCHER_DEBOUNCE_SECS:-2}"
+      WATCHER_DESTROY_DELAY_SECS: "${WATCHER_DESTROY_DELAY_SECS:-30}"
+      WATCHER_LOG_LEVEL: "${WATCHER_LOG_LEVEL:-info}"
+      # Comma-separated container name prefixes to always skip (on top of labels).
+      WATCHER_EXCLUDE_NAMES: "${WATCHER_EXCLUDE_NAMES:-buildx_buildkit}"
+      # Opt-in mode — set to true to require gravwell.enable=true on each container.
+      # WATCHER_OPT_IN: "false"
+      # Static overlay dir for non-container log sources (must match volume mount above).
+      # WATCHER_STATIC_CONF_DIR: "/opt/gravwell/etc/static.conf.d"
+
+    labels:
+      # Prevent the watcher from ingesting its own logs (recursion guard).
+      gravwell.skip: "true"
+
+    networks:
+      - gravwell
+
+volumes:
+  file_follow_state:
+    driver: local
+
+networks:
+  gravwell:
+    external: true
+    name: gravwell_file_follow_default
+

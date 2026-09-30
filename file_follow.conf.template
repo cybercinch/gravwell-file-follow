@@ -1,0 +1,50 @@
+[Global]
+	# Ingest authentication secret — MUST match the Gravwell server.
+	# Injected at runtime from GRAVWELL_INGEST_SECRET.
+	Ingest-Secret = GRAVWELL_INGEST_SECRET_PLACEHOLDER
+
+	# Connection targets — injected at runtime from GRAVWELL_CLEARTEXT_TARGETS
+	# and/or GRAVWELL_ENCRYPTED_TARGETS.
+	#Cleartext-Backend-Target=172.16.37.18:4023
+	#Encrypted-Backend-Target=172.16.37.18:4024
+
+	# Set to true if using a private/self-signed TLS certificate.
+	# Injected from INSECURE_SKIP_TLS_VERIFY.
+	#Insecure-Skip-TLS-Verify=false
+
+	Connection-Timeout = 0
+
+	# Stable per-host identity for the SRC field on every ingested entry —
+	# without this, SRC is whatever IP the TCP connection to the indexer
+	# happens to come from (an ephemeral Docker bridge IP on non-host-network
+	# deployments), which isn't safe to build dashboards/queries against.
+	# Injected from GRAVWELL_SOURCE_OVERRIDE (must be a valid IP).
+	#Source-Override=GRAVWELL_SOURCE_OVERRIDE_PLACEHOLDER
+
+	# Stable ingester identity — prevents "Missing Ingester" ghosts on redeploy.
+	# Injected from GRAVWELL_INGESTER_UUID; auto-generated if not set.
+	#Ingester-UUID=GRAVWELL_INGESTER_UUID_PLACEHOLDER
+
+	# Human-friendly label shown in Gravwell's Systems & Health page.
+	# Injected from GRAVWELL_INGESTER_LABEL.
+	#Label=GRAVWELL_INGESTER_LABEL_PLACEHOLDER
+
+	# State file — persisted via the file_follow_state Docker volume so that
+	# file offsets survive container restarts.
+	State-Store-Location = /opt/gravwell/etc/file_follow.state
+
+	# Log verbosity — injected from GRAVWELL_LOG_LEVEL (INFO, WARN, ERROR, OFF).
+	#Log-Level=INFO
+	Log-File = /opt/gravwell/log/file_follow.log
+
+	# Limit concurrent inotify watches.
+	Max-Files-Watched = 256
+
+	# Ingest cache (disabled by default — files are on stable storage).
+	#Ingest-Cache-Path=/opt/gravwell/cache/file_follow.cache
+	#Max-Ingest-Cache=1024
+
+# NOTE: No [Follower] blocks here.
+# All [Follower] stanzas are generated dynamically by docker-log-watcher
+# and written to /opt/gravwell/etc/file_follow.conf.d/*.conf at runtime.
+# gravwell_file_follow loads them via the -config-overlays flag.
