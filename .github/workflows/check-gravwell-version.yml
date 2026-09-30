@@ -38,6 +38,16 @@ jobs:
 
           echo "New gravwell release detected: $latest"
 
+          # Bump the Dockerfile's pinned version so the tag we're about to
+          # cut actually builds against the version it claims to.
+          sed -i "s/^ARG GRAVWELL_VERSION=.*/ARG GRAVWELL_VERSION=${latest}/" Dockerfile
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Dockerfile
+          git commit -m "chore(deps): bump pinned gravwell version to ${latest}"
+          git push origin HEAD:main
+
           git tag "$latest"
           git push origin "$latest"
 
