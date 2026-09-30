@@ -37,7 +37,6 @@ jobs:
           fi
 
           echo "New gravwell release detected: $latest"
-          gh variable set GRAVWELL_VERSION --body "$latest"
 
           git tag "$latest"
           git push origin "$latest"
