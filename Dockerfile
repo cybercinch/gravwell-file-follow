@@ -34,7 +34,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build \
 # =============================================================================
 FROM golang:1.26.8-bookworm AS ff-builder
 
-ARG GRAVWELL_VERSION=v3.8.84
+ARG GRAVWELL_VERSION=v3.8.85
 # TARGETARCH is injected by Buildx: "amd64" or "arm64".
 ARG TARGETARCH
 
@@ -64,7 +64,7 @@ RUN wget -qO /tini \
 # =============================================================================
 FROM busybox:stable AS runtime
 
-ARG GRAVWELL_VERSION=v3.8.84
+ARG GRAVWELL_VERSION=v3.8.85
 # TARGETARCH is injected by Buildx: "amd64" or "arm64".
 ARG TARGETARCH
 
